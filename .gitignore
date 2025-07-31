@@ -1,0 +1,47 @@
+# Configuration files (contains sensitive information)
+server/configs/*.sh
+!server/configs/example-config.sh
+
+# Environment files
+server/.env
+server/*.env
+server/.env.*
+# .env
+# *.env
+# .env.*
+
+# SSH keys and certificates
+*.pem
+*.key
+id_rsa*
+*.pub
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
