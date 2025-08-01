@@ -1,0 +1,217 @@
+# =============================================================================
+# 🚀 VPS Auto Deploy - Example Configuration File (YAML)
+# =============================================================================
+# Copy this file and rename it to your project name (e.g., my-app-config.yaml)
+# Fill in all required values below
+# Usage: ./ezdeploy.sh configs/my-app-config.yaml
+
+version: "1.0"
+
+# =============================================================================
+# 🖥️ SERVER CONFIGURATION
+# =============================================================================
+server:
+  # SSH user for server (usually 'ubuntu', 'root', or custom user)
+  user: ubuntu
+  
+  # Deploy server IP address (your VPS public IP)
+  ip: your.server.ip.address
+  
+  ssh:
+    # SSH authentication method: "key" or "password"
+    method: password
+    
+    # SSH password (if using password auth) - leave empty if using key
+    password: "your-ssh-password"
+    
+    # SSH key path (if using key auth) - uncomment and set if using key method
+    # key_path: ~/.ssh/id_rsa
+
+# =============================================================================
+# 📁 GIT REPOSITORY CONFIGURATION
+# =============================================================================
+repository:
+  # GitHub repository URL (HTTPS format will be auto-converted to SSH)
+  # Examples: 
+  #   - https://github.com/username/my-app
+  #   - git@github.com:username/my-app.git
+  url: https://github.com/username/my-app
+  
+  # Git branch to deploy (usually "main" or "master")
+  branch: main
+
+# =============================================================================
+# 🚀 APPLICATION CONFIGURATION
+# =============================================================================
+application:
+  # Project name (creates subdirectory: /apps/PROJECT_NAME)
+  # Use lowercase with hyphens (e.g., "my-app", "api-backend")
+  name: my-app
+  
+  # Project directory on server (where source code will be stored)
+  directory: /apps
+  
+  image:
+    # Docker image name (usually same as project name)
+    name: my-app
+    
+    # Docker image tag
+    tag: latest
+
+# =============================================================================
+# ☸️ KUBERNETES CONFIGURATION
+# =============================================================================
+kubernetes:
+  # Kubernetes provider: "microk8s" or "kubeadm"
+  provider: microk8s
+  
+  deployment:
+    # Port that your application listens on inside the container
+    # Examples: 3000 (Node.js), 8080 (Java), 5000 (Python Flask), 80 (Nginx)
+    port: 3000
+    
+    # Number of replica pods (1=dev, 2=recommended, 3+=high availability)
+    replicas: 2
+    
+    # Port that the Kubernetes service will expose (usually 80 for HTTP)
+    service_port: 80
+    
+    # Kubernetes release name (usually same as app name)
+    release_name: my-app
+    
+    # Kubernetes app name (usually same as app name)
+    app_name: my-app
+  
+  resources:
+    limits:
+      # Enable resource limits (recommended for production)
+      # Set to false for development or unlimited resources
+      enabled: false
+      
+      cpu:
+        # CPU request (guaranteed allocation)
+        request: "250m"
+        
+        # CPU limit (maximum allocation)
+        limit: "500m"
+      
+      memory:
+        # Memory request (guaranteed allocation)
+        request: "256Mi"
+        
+        # Memory limit (maximum allocation)  
+        limit: "512Mi"
+
+# =============================================================================
+# 🌐 INGRESS & HTTPS CONFIGURATION
+# =============================================================================
+ingress:
+  # List of domains for your application
+  # Examples: 
+  #   Single domain: ["app.domain.com"]
+  #   Multiple domains: ["api.domain.com", "www.api.domain.com"]
+  hosts:
+    - app.domain.com
+    - www.app.domain.com
+  
+  tls:
+    # Email for Let's Encrypt SSL certificates
+    email: admin@domain.com
+    
+    # Enable HTTPS with automatic SSL certificates
+    # Set to false for HTTP only (not recommended for production)
+    enabled: true
+
+# =============================================================================
+# 📄 ENVIRONMENT CONFIGURATION
+# =============================================================================
+environment:
+  # Environment file containing your app's environment variables
+  # This file should exist in the same directory as this config
+  # Examples: ".env", "production.env", ".prod.env"
+  file: .env
+
+# =============================================================================
+# 🗄️ DATABASE CONFIGURATION (Optional)
+# =============================================================================
+database:
+  # Enable database deployment (true/false)
+  enabled: false
+  
+  # Database type: "mysql", "postgres", "mariadb"
+  type: mysql
+  
+  # Database name
+  name: my_app_db
+  
+  # Database username
+  user: my_app_user
+  
+  # Database password
+  password: secure_db_password
+
+# =============================================================================
+# 🔴 REDIS CONFIGURATION (Optional)
+# =============================================================================
+redis:
+  # Enable Redis cache deployment (true/false)
+  enabled: false
+  
+  # Redis password
+  password: secure_redis_password
+
+# =============================================================================
+# 📝 USAGE EXAMPLES
+# =============================================================================
+
+# Example 1: Simple Node.js API
+# -------------------------------
+# application:
+#   name: api-backend
+# kubernetes:
+#   deployment:
+#     port: 3000
+# ingress:
+#   hosts: ["api.company.com"]
+# database:
+#   enabled: true
+#   type: mysql
+
+# Example 2: Static Frontend (React/Vue/Angular)
+# ----------------------------------------------
+# application:
+#   name: frontend-app
+# kubernetes:
+#   deployment:
+#     port: 80
+# ingress:
+#   hosts: ["app.company.com", "www.app.company.com"]
+# database:
+#   enabled: false
+
+# Example 3: Full-stack with Database + Redis
+# -------------------------------------------
+# application:
+#   name: fullstack-app
+# kubernetes:
+#   deployment:
+#     port: 8080
+#     replicas: 3
+#   resources:
+#     limits:
+#       enabled: true
+# database:
+#   enabled: true
+#   type: postgres
+# redis:
+#   enabled: true
+
+# =============================================================================
+# 🚨 IMPORTANT NOTES
+# =============================================================================
+# 1. Replace ALL placeholder values (your.server.ip.address, etc.)
+# 2. Ensure your .env file exists in the same directory
+# 3. Domain DNS must point to your server IP
+# 4. For production, enable resource limits and use strong passwords
+# 5. Test with HTTP first, then enable HTTPS after DNS is configured
+# 6. SSH key method is more secure than password for production

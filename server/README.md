@@ -1,17 +1,19 @@
 # 🚀 VPS Auto Deploy
 
-Interactive deployment system for VPS/Ubuntu servers with SSH Deploy Keys, Docker, and Kubernetes.
+Fully automated deployment system for VPS/Ubuntu servers with YAML configuration, Pulumi, Docker, and Kubernetes.
 
 ## 📋 Overview
 
-Deploy any application to your VPS with a single command and interactive configuration:
+Deploy any application to your VPS with a single command and YAML configuration:
 
 ```bash
-./deploy-app.sh configs/my-app-config.sh
+./ezdeploy.sh configs/my-app-config.yaml
 ```
 
 **Key Features:**
-- ✅ **Interactive Menu** - Arrow key navigation for easy setup
+- ✅ **YAML Configuration** - Simple, structured config files with full documentation
+- ✅ **Zero Interaction** - Fully automated deployment, perfect for CI/CD
+- ✅ **Pulumi IaC** - Infrastructure as Code for better CI/CD integration
 - ✅ **SSH Deploy Keys** - Automatic GitHub SSH key management
 - ✅ **Auto SSL** - Let's Encrypt certificates with cert-manager
 - ✅ **Kubernetes Ready** - MicroK8s for production deployment
@@ -32,39 +34,55 @@ Deploy any application to your VPS with a single command and interactive configu
 ```bash
 git clone <your-repo-url>
 cd auto-deploy/server
-chmod +x deploy-app.sh
+chmod +x ezdeploy.sh
 ```
 
 ### 2. Create Config
 
 ```bash
-cp configs/example-config.sh configs/my-app-config.sh
-nano configs/my-app-config.sh
+cp configs/example-config.yaml configs/my-app-config.yaml
+nano configs/my-app-config.yaml
 ```
 
 **Essential settings:**
-```bash
-# Server
-SERVER_USER="ubuntu"
-SERVER_IP="your.server.ip"
-SSH_AUTH_METHOD="password"
-SSH_PASSWORD="your-password"
+```yaml
+version: "1.0"
 
-# Git Repository
-GIT_REPO_URL="https://github.com/username/my-app"
-GIT_BRANCH="main"
-PROJECT_NAME="my-app"
+server:
+  user: ubuntu
+  ip: your.server.ip
+  ssh:
+    method: password
+    password: "your-password"
 
-# Application
-CONTAINER_PORT=3000         # Port your app runs on
-SERVICE_PORT=80            # Kubernetes service port
+repository:
+  url: https://github.com/username/my-app
+  branch: main
 
-# Domain & SSL
-INGRESS_HOSTS=("app.domain.com")
-CERT_EMAIL="admin@domain.com"
+application:
+  name: my-app
+  directory: /apps
+  image:
+    name: my-app
+    tag: latest
 
-# Environment File
-ENV_FILE=".env"
+kubernetes:
+  provider: microk8s
+  deployment:
+    port: 3000
+    replicas: 2
+  resources:
+    limits:
+      enabled: false
+
+ingress:
+  hosts:
+    - app.domain.com
+  tls:
+    email: admin@domain.com
+
+environment:
+  file: .env
 ```
 
 ### 3. Create Environment File
@@ -84,19 +102,20 @@ API_KEY=your-api-key
 ### 4. Deploy
 
 ```bash
-./deploy-app.sh configs/my-app-config.sh
+./ezdeploy.sh configs/my-app-config.yaml
 ```
 
-## 🎛️ Interactive Configuration
+## 📋 YAML Configuration
 
-The script will guide you through:
+All configuration is done through YAML files with full documentation:
 
-1. **Database Setup** - MySQL, PostgreSQL, or none
-2. **Redis Cache** - Optional caching layer
-3. **Resource Limits** - CPU/Memory constraints
-4. **HTTPS/SSL** - Automatic certificates
-5. **Replicas** - Number of app instances
+1. **Database Setup** - MySQL, PostgreSQL, or disable
+2. **Redis Cache** - Enable/disable caching layer
+3. **Resource Limits** - CPU/Memory constraints configuration
+4. **HTTPS/SSL** - Automatic Let's Encrypt certificates
+5. **Replicas** - Number of app instances (1-10+)
 6. **Kubernetes Mode** - MicroK8s or Kubeadm
+7. **Complete Documentation** - Every field explained with examples
 
 ## 📊 What Gets Deployed
 
@@ -104,8 +123,9 @@ The script will guide you through:
 Your VPS Server
 ├── Docker containerized app
 ├── Kubernetes orchestration (MicroK8s)
-├── Nginx load balancer
-├── SSL certificates (auto-renewal)
+├── Pulumi infrastructure management
+├── Nginx ingress controller
+├── SSL certificates (auto-renewal with cert-manager)
 ├── Database (if selected)
 ├── Redis cache (if selected)
 └── Environment variables from ConfigMap
@@ -115,13 +135,20 @@ Your VPS Server
 
 ### Node.js API with Database
 
-**Config:** `api-config.sh`
-```bash
-SERVER_IP="192.168.1.100"
-GIT_REPO_URL="https://github.com/company/api"
-PROJECT_NAME="api-backend"
-CONTAINER_PORT=3000
-INGRESS_HOSTS=("api.company.com")
+**Config:** `api-config.yaml`
+```yaml
+server:
+  ip: 192.168.1.100
+repository:
+  url: https://github.com/company/api
+application:
+  name: api-backend
+kubernetes:
+  deployment:
+    port: 3000
+ingress:
+  hosts:
+    - api.company.com
 ```
 
 **Interactive selections:**
@@ -132,13 +159,21 @@ INGRESS_HOSTS=("api.company.com")
 
 ### Static Frontend
 
-**Config:** `frontend-config.sh`
-```bash
-SERVER_IP="192.168.1.100"
-GIT_REPO_URL="https://github.com/company/frontend"
-PROJECT_NAME="frontend-app"
-CONTAINER_PORT=80
-INGRESS_HOSTS=("app.company.com" "www.app.company.com")
+**Config:** `frontend-config.yaml`
+```yaml
+server:
+  ip: 192.168.1.100
+repository:
+  url: https://github.com/company/frontend
+application:
+  name: frontend-app
+kubernetes:
+  deployment:
+    port: 80
+ingress:
+  hosts:
+    - app.company.com
+    - www.app.company.com
 ```
 
 **Interactive selections:**
@@ -150,15 +185,19 @@ INGRESS_HOSTS=("app.company.com" "www.app.company.com")
 ## 🔐 SSH Authentication
 
 **Option 1: Password (Easy)**
-```bash
-SSH_AUTH_METHOD="password"
-SSH_PASSWORD="your-password"
+```yaml
+server:
+  ssh:
+    method: password
+    password: "your-password"
 ```
 
 **Option 2: SSH Key (Secure)**
-```bash
-SSH_AUTH_METHOD="key"
-SSH_KEY_PATH="$HOME/.ssh/id_rsa"
+```yaml
+server:
+  ssh:
+    method: key
+    key_path: ~/.ssh/id_rsa
 ```
 
 ## 📋 Post-Deployment
@@ -180,13 +219,19 @@ After successful deployment:
 ssh user@server "microk8s kubectl get pods"
 
 # View logs
-ssh user@server "microk8s kubectl logs -f deployment/my-app"
+ssh user@server "microk8s kubectl logs -f deployment/my-app-deployment"
 
 # Restart app
-ssh user@server "microk8s kubectl rollout restart deployment/my-app"
+ssh user@server "microk8s kubectl rollout restart deployment/my-app-deployment"
+
+# Check Pulumi stack status
+ssh user@server "cd /deployments/my-app && pulumi stack"
+
+# View Pulumi outputs
+ssh user@server "cd /deployments/my-app && pulumi stack output"
 
 # Update deployment
-./deploy-app.sh configs/my-app-config.sh
+./ezdeploy.sh configs/my-app-config.yaml
 ```
 
 ## ❓ Troubleshooting
@@ -195,22 +240,31 @@ ssh user@server "microk8s kubectl rollout restart deployment/my-app"
 - Check logs: `kubectl logs pod-name`
 - Verify environment variables in ConfigMap
 - Ensure Docker image builds correctly
+- Check resource limits if getting OOM kills (exit code 137)
 
 **SSL not working?**
 - Wait 2-3 minutes for cert-manager to issue certificate
-- Check certificate: `kubectl describe certificate`
+- Check certificate: `kubectl describe certificate app-name-tls`
 - Verify domain DNS points to server IP
+- Check for Let's Encrypt rate limits (5 certificates per week per domain)
 
 **Can't connect to database?**
 - Database runs inside Kubernetes cluster
 - Use service name as host (e.g., `mysql-service`)
 - Check credentials match what you configured
 
+**Pulumi deployment failed?**
+- Check Pulumi state: `pulumi stack`
+- View detailed errors: `pulumi stack export`
+- Clear conflicts: Script automatically handles cleanup and retry
+
 ## 📚 Additional Resources
 
+- [Pulumi Documentation](https://www.pulumi.com/docs/)
 - [Kubernetes Basics](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
 - [MicroK8s Documentation](https://microk8s.io/docs)
 - [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+- [cert-manager Documentation](https://cert-manager.io/docs/)
 
 ---
 

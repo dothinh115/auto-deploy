@@ -1,0 +1,68 @@
+name: auto-deploy
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: Auto-deploy infrastructure management with Pulumi
+config:
+  # Application configuration
+  auto-deploy:projectName:
+    type: string
+    description: Name of the project to deploy
+  auto-deploy:appName:
+    type: string
+    description: Application name
+  auto-deploy:image:
+    type: string
+    description: Docker image name with tag
+  auto-deploy:replicas:
+    type: integer
+    default: 2
+    description: Number of pod replicas
+  
+  # Ports configuration
+  auto-deploy:containerPort:
+    type: integer
+    default: 3000
+    description: Port that container exposes
+  auto-deploy:servicePort:
+    type: integer
+    default: 80
+    description: Service port
+  
+  # Ingress configuration
+  auto-deploy:ingressHosts:
+    type: array
+    items:
+      type: string
+    description: List of domain hosts
+  auto-deploy:enableTls:
+    type: boolean
+    default: true
+    description: Enable TLS/HTTPS
+  auto-deploy:certEmail:
+    type: string
+    description: Email for Let's Encrypt certificates
+  
+  # Resource limits
+  auto-deploy:enableResourceLimits:
+    type: boolean
+    default: false
+    description: Enable resource limits
+  auto-deploy:cpuRequest:
+    type: string
+    default: "250m"
+  auto-deploy:cpuLimit:
+    type: string
+    default: "500m"
+  auto-deploy:memoryRequest:
+    type: string
+    default: "256Mi"
+  auto-deploy:memoryLimit:
+    type: string
+    default: "512Mi"
+  
+  # Environment configuration
+  auto-deploy:envConfigMap:
+    type: string
+    description: Name of ConfigMap containing environment variables

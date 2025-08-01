@@ -1,0 +1,19 @@
+{
+  "name": "auto-deploy-pulumi",
+  "version": "1.0.0",
+  "description": "Pulumi infrastructure for auto-deploy system",
+  "main": "index.ts",
+  "scripts": {
+    "deploy": "pulumi up",
+    "preview": "pulumi preview",
+    "destroy": "pulumi destroy"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.0.0",
+    "@pulumi/kubernetes": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
