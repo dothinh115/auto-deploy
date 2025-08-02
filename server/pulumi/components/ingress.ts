@@ -13,7 +13,11 @@ interface IngressArgs {
 
 export function createIngress(args: IngressArgs): k8s.networking.v1.Ingress {
     const annotations: { [key: string]: string } = {
-        "nginx.ingress.kubernetes.io/backend-protocol": "HTTP"
+        "nginx.ingress.kubernetes.io/backend-protocol": "HTTP",
+        // Enable gzip compression for better performance
+        "nginx.ingress.kubernetes.io/enable-gzip": "true",
+        "nginx.ingress.kubernetes.io/gzip-level": "6",
+        "nginx.ingress.kubernetes.io/gzip-types": "text/plain application/json application/javascript text/css application/xml text/xml application/xml+rss text/javascript"
     };
 
     // Add cert-manager annotations for automatic SSL

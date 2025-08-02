@@ -1750,17 +1750,162 @@ ssh_exec_heredoc <<EOF
         echo "✅ All pods terminated!"
       fi
       
-      # Clean unused images (optional for disk space)
-      echo "🧹 Cleaning unused images..."
-      sudo docker image prune -f || true
+      # Smart image cleanup using imageTag
+      echo "🧹 Smart image cleanup (preserve current deployment)..."
       
-      echo "✅ Cleanup completed"
+      # Get current image tag from deployment or generate new one
+      CURRENT_IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || date +%s)
+      CURRENT_IMAGE="$IMAGE_NAME:$CURRENT_IMAGE_TAG"
+      
+      echo "🏷️ Current image: $CURRENT_IMAGE"
+      
+      # Clean old Docker images (keep 2 most recent + current)
+      echo "🗑️ Removing old Docker images..."
+      OLD_IMAGES=$(sudo docker images "$IMAGE_NAME" --format "{{.Repository}}:{{.Tag}}" | \
+        grep -v "$CURRENT_IMAGE_TAG" | \
+        tail -n +3 || true)
+      
+      if [ -n "$OLD_IMAGES" ]; then
+        echo "$OLD_IMAGES" | xargs -r sudo docker rmi -f || true
+        echo "✅ Old Docker images removed"
+      fi
+      
+      # Clean old containerd images (keep 2 most recent + current)
+      echo "🗑️ Removing old containerd images..."
+      OLD_CTR_IMAGES=$(sudo microk8s ctr images list name~="$IMAGE_NAME" --format "table" | \
+        tail -n +2 | \
+        grep -v "$CURRENT_IMAGE_TAG" | \
+        tail -n +3 | \
+        awk '{print $1}' || true)
+      
+      if [ -n "$OLD_CTR_IMAGES" ]; then
+        echo "$OLD_CTR_IMAGES" | xargs -r sudo microk8s ctr images remove || true
+        echo "✅ Old containerd images removed"
+      fi
+      
+      # Comprehensive garbage collection
+      echo "🧹 Running comprehensive garbage collection..."
+      
+      # Docker GC
+      sudo docker container prune -f --filter "until=1h" || true
+      sudo docker image prune -af --filter "until=2h" || true
+      sudo docker volume prune -f || true
+      sudo docker network prune -f || true
+      sudo docker builder prune -af --filter "until=6h" || true
+      
+      # Containerd GC
+      sudo microk8s ctr snapshots prune || true
+      sudo microk8s ctr content prune || true
+      
+      # Aggressive kubelet GC for deploy
+      KUBELET_ARGS="/var/snap/microk8s/current/args/kubelet"
+      if [ -f "$KUBELET_ARGS" ]; then
+        echo "⚙️ Setting aggressive kubelet GC..."
+        
+        # Remove existing GC settings and set aggressive ones
+        sudo sed -i '/--image-gc-/d; /--minimum-container-ttl/d; /--maximum-dead-containers/d' $KUBELET_ARGS
+        
+        # Aggressive GC settings - clean everything old
+        sudo tee -a $KUBELET_ARGS > /dev/null << EOF
+--image-gc-high-threshold=30
+--image-gc-low-threshold=20
+--minimum-container-ttl-duration=10s
+--maximum-dead-containers=5
+--maximum-dead-containers-per-container=1
+--image-minimum-gc-age=30m
+EOF
+        
+        echo "🔄 Restarting kubelet with aggressive GC..."
+        sudo snap restart microk8s.daemon-kubelet
+        sleep 15
+      fi
+      
+      # Clean system resources
+      echo "🧹 System cleanup..."
+      sudo find /tmp -name "*$PROJECT_NAME*" -type f -mtime +1 -delete 2>/dev/null || true
+      sudo find /var/log -name "*.log" -size +100M -exec truncate -s 50M {} \; 2>/dev/null || true
+      
+      # Force filesystem sync and clear caches
+      sudo sync
+      echo 1 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+      
+      echo "✅ Smart cleanup completed"
     else
-      echo "🧹 Cleaning up existing Kubernetes resources..."
+      echo "🧹 Smart cleanup for kubeadm..."
+      
       # Clean up any existing Pulumi resources
       kubectl delete deployment "${PROJECT_NAME}-deployment" --ignore-not-found || true
       kubectl delete service "${PROJECT_NAME}-service" --ignore-not-found || true
       kubectl delete ingress "${PROJECT_NAME}-ingress" --ignore-not-found || true
+      
+      # Smart image cleanup for kubeadm
+      CURRENT_IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || date +%s)
+      echo "🏷️ Current image: $IMAGE_NAME:$CURRENT_IMAGE_TAG"
+      
+      # Clean old Docker images (keep 2 most recent + current)
+      OLD_IMAGES=$(docker images "$IMAGE_NAME" --format "{{.Repository}}:{{.Tag}}" | \
+        grep -v "$CURRENT_IMAGE_TAG" | \
+        tail -n +3 || true)
+      
+      if [ -n "$OLD_IMAGES" ]; then
+        echo "$OLD_IMAGES" | xargs -r docker rmi -f || true
+        echo "✅ Old Docker images removed"
+      fi
+      
+      # Comprehensive garbage collection for kubeadm
+      echo "🧹 Running comprehensive garbage collection..."
+      docker container prune -f --filter "until=1h" || true
+      docker image prune -af --filter "until=2h" || true
+      docker volume prune -f || true
+      docker network prune -f || true
+      docker builder prune -af --filter "until=6h" || true
+      
+      # Aggressive kubelet GC for kubeadm deploy
+      KUBELET_CONFIG="/var/lib/kubelet/config.yaml"
+      if [ -f "$KUBELET_CONFIG" ]; then
+        echo "⚙️ Setting aggressive kubelet GC for kubeadm..."
+        
+        # Remove existing GC settings
+        sed -i '/imageGC/d; /containerLog/d' $KUBELET_CONFIG
+        
+        # Add aggressive GC settings
+        cat >> $KUBELET_CONFIG << EOF
+imageGCHighThresholdPercent: 30
+imageGCLowThresholdPercent: 20
+imageMinimumGCAge: 30m0s
+containerLogMaxSize: 10Mi
+containerLogMaxFiles: 2
+EOF
+        
+        echo "🔄 Restarting kubelet with aggressive GC..."
+        systemctl restart kubelet
+        sleep 15
+      fi
+      
+      # Clean Kubernetes resources
+      kubectl delete pods --field-selector=status.phase=Succeeded --all-namespaces --timeout=30s || true
+      kubectl delete pods --field-selector=status.phase=Failed --all-namespaces --timeout=30s || true
+      kubectl delete pods --field-selector=status.phase=Evicted --all-namespaces --timeout=30s || true
+      
+      # Clean old replica sets (keep 3 newest)
+      kubectl get replicaset --all-namespaces --sort-by='.metadata.creationTimestamp' | \
+        awk '$3==0 && $4==0 && $5==0 {print $2 " --namespace=" $1}' | \
+        head -n -3 | \
+        xargs -r -I {} kubectl delete replicaset {} --timeout=30s || true
+      
+      # System cleanup
+      find /tmp -name "*$PROJECT_NAME*" -type f -mtime +1 -delete 2>/dev/null || true
+      find /var/log -name "*.log" -size +100M -exec truncate -s 50M {} \; 2>/dev/null || true
+      
+      # Clean Docker logs
+      if [ -d "/var/lib/docker/containers" ]; then
+        find /var/lib/docker/containers -name "*.log" -size +50M -exec truncate -s 10M {} \; 2>/dev/null || true
+      fi
+      
+      sync
+      echo 1 > /proc/sys/vm/drop_caches 2>/dev/null || true
+      
+      echo "✅ Smart cleanup completed"
     fi
     
     # Deploy application using Pulumi
