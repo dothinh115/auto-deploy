@@ -258,6 +258,103 @@ ssh user@server "cd /deployments/my-app && pulumi stack output"
 - View detailed errors: `pulumi stack export`
 - Clear conflicts: Script automatically handles cleanup and retry
 
+## 🧹 Smart Cleanup System
+
+The deployment script includes aggressive garbage collection to optimize disk space:
+
+### Automatic Cleanup Features:
+- **Image Tag Tracking** - Uses git commit hash for unique image versions
+- **Smart Image Removal** - Keeps 2 most recent images + current deployment
+- **Aggressive Kubelet GC** - Optimized garbage collection settings
+- **System Cleanup** - Removes logs, temp files, and unused containers
+- **Immediate Cleanup** - No backup retention (deployment script only)
+
+### Kubelet GC Settings:
+```bash
+# MicroK8s
+--image-gc-high-threshold=30
+--image-gc-low-threshold=20
+--minimum-container-ttl-duration=10s
+
+# Kubeadm  
+imageGCHighThresholdPercent: 30
+imageGCLowThresholdPercent: 20
+imageMinimumGCAge: 30m0s
+```
+
+## 🔄 CI/CD Integration with Pulumi
+
+For production CI/CD pipelines, use Pulumi directly:
+
+### GitHub Actions Example:
+```yaml
+name: Deploy to VPS
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            # Update source code
+            cd /apps/my-app
+            git pull origin main
+            
+            # Build with unique tag
+            COMMIT_HASH=$(git rev-parse --short HEAD)
+            docker build -t my-app:$COMMIT_HASH .
+            
+            # Update Pulumi deployment
+            cd /deployments/my-app
+            export PATH=$PATH:$HOME/.pulumi/bin
+            export PULUMI_CONFIG_PASSPHRASE=''
+            
+            # Auto-detect K8s provider
+            K8S_MODE=$(yq ".kubernetes.provider" ~/configs/my-app.yaml)
+            if [ "$K8S_MODE" = "microk8s" ]; then
+              export KUBECONFIG=/var/snap/microk8s/current/credentials/client.config
+            else
+              export KUBECONFIG=/etc/kubernetes/admin.conf
+            fi
+            
+            # Deploy with new image
+            pulumi login file://$(pwd)/.pulumi
+            pulumi stack select my-app
+            pulumi config set image my-app:$COMMIT_HASH
+            pulumi up --yes
+```
+
+### Key CI/CD Features:
+- **Git-based versioning** - Unique image tags per commit
+- **Zero-downtime deployments** - Kubernetes rolling updates
+- **State management** - Pulumi tracks infrastructure changes
+- **Provider detection** - Auto-detects MicroK8s vs kubeadm
+- **Secure configs** - Environment-based secrets
+
+### Pulumi Commands for CI/CD:
+```bash
+# Check deployment status
+pulumi stack output
+
+# View current configuration  
+pulumi config
+
+# Force refresh state
+pulumi refresh --yes
+
+# Rollback (manual)
+pulumi config set image my-app:previous-tag
+pulumi up --yes
+```
+
 ## 📚 Additional Resources
 
 - [Pulumi Documentation](https://www.pulumi.com/docs/)

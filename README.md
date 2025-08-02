@@ -7,7 +7,7 @@ One-command deployment system for modern applications with automatic SSL, Kubern
 Deploy any application to your VPS in minutes with a single command. Auto Deploy handles everything - from server setup to SSL certificates.
 
 ```bash
-./deploy-app.sh configs/my-app-config.sh
+./ezdeploy.sh configs/my-app-config.yaml
 ```
 
 ## 🎯 Key Features
@@ -25,18 +25,18 @@ Deploy any application to your VPS in minutes with a single command. Auto Deploy
 ```bash
 git clone <your-repo-url>
 cd auto-deploy/server
-chmod +x deploy-app.sh
+chmod +x ezdeploy.sh
 ```
 
 ### 2. Configure
 ```bash
-cp configs/example-config.sh configs/my-app-config.sh
-nano configs/my-app-config.sh  # Add your server IP & GitHub repo
+cp configs/example-config.yaml configs/my-app-config.yaml
+nano configs/my-app-config.yaml  # Add your server IP & GitHub repo
 ```
 
 ### 3. Deploy
 ```bash
-./deploy-app.sh configs/my-app-config.sh
+./ezdeploy.sh configs/my-app-config.yaml
 ```
 
 That's it! Your app is now live with HTTPS, database, and auto-scaling.
@@ -44,12 +44,13 @@ That's it! Your app is now live with HTTPS, database, and auto-scaling.
 ## 📋 What Gets Deployed
 
 - ✅ Docker containerized application
-- ✅ Kubernetes orchestration (MicroK8s)
-- ✅ Nginx load balancer
-- ✅ SSL certificates (cert-manager)
+- ✅ Kubernetes orchestration (MicroK8s/kubeadm)
+- ✅ Pulumi infrastructure as code
+- ✅ Nginx ingress with SSL (cert-manager)
 - ✅ Database (MySQL/PostgreSQL)
 - ✅ Redis caching (optional)
 - ✅ Environment variables management
+- ✅ Smart cleanup & garbage collection
 
 ## 🛠️ Supported Technologies
 
